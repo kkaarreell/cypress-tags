@@ -40,7 +40,8 @@ const extractTags = (config: Cypress.PluginConfigOptions) => {
 
 // Use include and exclude tags to determine if current node should be skipped
 const calculateSkipChildren = (includeTags: string[], excludeTags: string[], tags: string[]): boolean => {
-  const includeTest = includeTags.length === 0 || tags.some(tag => includeTags.includes(tag));
+  const itOutsideDescribe = tags.includes('__inIt')? !tags.includes('__inDescribe'): false
+  const includeTest = itOutsideDescribe ? true : includeTags.length === 0 || tags.some(tag => includeTags.includes(tag));
   const excludeTest = excludeTags.length > 0 && tags.some(tag => excludeTags.includes(tag));
 
   return !(includeTest && !excludeTest);
@@ -120,7 +121,7 @@ const transformer = (config: Cypress.PluginConfigOptions) => <T extends ts.Node>
           // Describe / Context block
           if (firstArgIsTag || ts.isArrayLiteralExpression(firstArg)) {
             // First arg is single tag or tags list
-            const result = removeTagsFromNode(node, tags, includeTags, excludeTags);
+            const result = removeTagsFromNode(node, tags.concat('__inDescribe'), includeTags, excludeTags)
             skipNode = result.skipNode;
             returnNode = result.node;
             tags = result.tags;
@@ -129,12 +130,12 @@ const transformer = (config: Cypress.PluginConfigOptions) => <T extends ts.Node>
           // It block
           if (firstArgIsTag || ts.isArrayLiteralExpression(firstArg)) {
             // First arg is single tag or tags list
-            const result = removeTagsFromNode(node, tags, includeTags, excludeTags);
+            const result = removeTagsFromNode(node, tags.concat('__inIt'), includeTags, excludeTags);
             skipNode = result.skipNode;
             returnNode = result.node;
           } else if (isTitle(firstArg)) {
             // First arg is title
-            skipNode = calculateSkipChildren(includeTags, excludeTags, tags);
+            skipNode = calculateSkipChildren(includeTags, excludeTags, tags.concat('__inIt'));
           }
         }
       } else if (ts.isPropertyAccessExpression(node.expression)) {
